@@ -105,21 +105,32 @@ module sm_control
     wire         condZero;
     assign pcSrc = branch & (aluZero == condZero);
 
+    // cmdOper values
+    localparam  C_SPEC  = 6'b000000, // Special instructions (depends on cmdFunk field)
+                C_ADDIU = 6'b001001, // I-type, Integer Add Immediate Unsigned
+                                     //         Rd = Rs + Immed
+                C_BEQ   = 6'b000100, // I-type, Branch On Equal
+                                     //         if (Rs == Rt) PC += (int)offset
+                C_LUI   = 6'b001111, // I-type, Load Upper Immediate
+                                     //         Rt = Immed << 16
+                C_BNE   = 6'b000101; // I-type, Branch on Not Equal
+                                     //         if (Rs != Rt) PC += (int)offset
+
+    // cmdFunk values
+    localparam  F_ADDU  = 6'b100001, // R-type, Integer Add Unsigned
+                                     //         Rd = Rs + Rt
+                F_OR    = 6'b100101, // R-type, Logical OR
+                                     //         Rd = Rs | Rt
+                F_SRL   = 6'b000010, // R-type, Shift Right Logical
+                                     //         Rd = Rs∅ >> shift
+                F_SLTU  = 6'b101011, // R-type, Set on Less Than Unsigned
+                                     //         Rd = (Rs∅  < Rt∅) ? 1 : 0
+                F_SUBU  = 6'b100011, // R-type, Unsigned Subtract
+                                     //         Rd = Rs – Rt
+                F_ANY   = 6'b??????;
+
     reg    [7:0] conf;
     assign { branch, condZero, regDst, regWrite, aluSrc, aluControl } = conf;
-
-    localparam  C_SPEC  = 6'b000000,
-                C_ADDIU = 6'b001001,
-                C_BEQ   = 6'b000100,
-                C_LUI   = 6'b001111,
-                C_BNE   = 6'b000101;
-
-    localparam  F_ADDU  = 6'b100001,
-                F_OR    = 6'b100101,
-                F_SRL   = 6'b000010,
-                F_SLTU  = 6'b101011,
-                F_SUBU  = 6'b100011,
-                F_ANY   = 6'b??????;
 
     always @ (*) begin
         casez( {cmdOper,cmdFunk} )
