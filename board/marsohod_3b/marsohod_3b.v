@@ -1,5 +1,5 @@
 
-module marsohod_3(
+module marsohod_3b(
       input       CLK100MHZ,
       input       KEY0,
       input       KEY1,
