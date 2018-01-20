@@ -1,8 +1,8 @@
 # schoolMIPS
 
-A small MIPS CPU core originally based on Sarah L. Harris MIPS CPU. Its first version was written for [Young Russian Chip Architects](http://www.silicon-russia.com/2017/06/09/arduino-and-fpga/) summer school.
+A small MIPS CPU core originally based on Sarah L. Harris MIPS CPU ("Digital Design and Computer Arhitecture" by David Money Harris and Sarah L Harris). The first version of schoolMIPS was written for [Young Russian Chip Architects](http://www.silicon-russia.com/2017/06/09/arduino-and-fpga/) summer school.
 
-The schoolMIPS have several versions (from simple to complex). Each of them is placed in the separate git branch:
+The CPU have several versions (from simple to complex). Each of them is placed in the separate git branch:
 - **00_simple** - the simplest CPU without data memory, programs compiled with GNU gcc;
 - **01_mmio** - the same but with data memory, simple system bus and peripherals (pwm, gpio, als);
 - **02_irq** - data memory, system timer, interrupts and exceptions (CP0 coprocessor);
