@@ -11,6 +11,7 @@ SECTIONS
 
     /DISCARD/ :
     {
+      *(.note.gnu.build-id)
       *(.MIPS.abiflags)
       *(.reginfo)
       *(.gnu.attributes)

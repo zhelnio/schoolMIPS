@@ -18,21 +18,8 @@ help:
 	$(info make gtkwave    - show the result of Icarus Verilog simulation in GTKWave)
 	@true
 
-#########################################################
-# Path and program settings
-
-CC = mips-mti-elf-gcc
-LD = mips-mti-elf-gcc
-OD = mips-mti-elf-objdump
-OC = mips-mti-elf-objcopy
-SZ = mips-mti-elf-size
-
-#OS dependent
-# sed
-SED = sed
-ifeq ($(OS), Windows_NT)
-	SED  = ../../scripts/bin/sed
-endif
+PWD = $(shell pwd)
+include $(PWD)/../settings.mk
 
 #########################################################
 # Compile settings and tasks
