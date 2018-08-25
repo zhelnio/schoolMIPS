@@ -7,17 +7,42 @@ module sm_top
     input   [ 3:0 ] clkDevide,
     input           clkEnable,
     output          clk,
-    input   [ 4:0 ] regAddr,
-    output  [31:0 ] regData
+    //input   [ 4:0 ] regAddr,
+    //output  [31:0 ] regData,
+    output              hsync,
+    output              vsync,
+    output  [3:0]       R,
+    output  [3:0]       G,
+    output  [3:0]       B,
+    output              buzz,
+    output  [3:0]       led
 );
     //metastability input filters
     wire    [ 3:0 ] devide;
     wire            enable;
-    wire    [ 4:0 ] addr;
+    //wire    [ 4:0 ] addr;
+    assign led = 0 ;
 
-    sm_debouncer #(.SIZE(4)) f0(clkIn, clkDevide, devide);
+    sm_debouncer #(.SIZE(4)) f0(clkIn, 4'b1000, devide);
     sm_debouncer #(.SIZE(1)) f1(clkIn, clkEnable, enable);
-    sm_debouncer #(.SIZE(5)) f2(clkIn, regAddr,   addr  );
+    //sm_debouncer #(.SIZE(5)) f2(clkIn, regAddr,   addr  );
+
+    wire   [ 4:0 ] addr;
+    wire   [31:0 ] regData;
+
+    VGA_top VGA_top_0
+    (
+        .clk    ( clkIn     ),
+        .rst    ( rst_n     ),
+        .hsync  ( hsync     ),
+        .vsync  ( vsync     ),
+        .R      ( R         ),
+        .G      ( G         ),
+        .B      ( B         ),
+        .buzz   ( buzz      ),
+        .regAddr( addr      ),
+        .regData( regData   )
+    );
 
     //cores
     //clock devider

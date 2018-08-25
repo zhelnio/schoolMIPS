@@ -15,6 +15,12 @@ module de10_lite(
 
     input   [  1:0 ]    KEY,
 
+    output  [  3:0 ]    VGA_B,
+    output  [  3:0 ]    VGA_G,
+    output              VGA_HS,
+    output  [  3:0 ]    VGA_R,
+    output              VGA_VS,
+
     output  [  9:0 ]    LEDR,
 
     input   [  9:0 ]    SW,
@@ -39,8 +45,13 @@ module de10_lite(
         .clkDevide  ( clkDevide ),
         .clkEnable  ( clkEnable ),
         .clk        ( clk       ),
-        .regAddr    ( regAddr   ),
-        .regData    ( regData   )
+        // .regAddr    ( regAddr   ),
+        // .regData    ( regData   )
+        .hsync      ( VGA_HS ),
+        .vsync      ( VGA_VS ),
+        .R          ( VGA_R ),
+        .G          ( VGA_G ),
+        .B          ( VGA_B ) 
     );
 
     //outputs
