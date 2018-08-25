@@ -33,7 +33,7 @@ module sm_top
     VGA_top VGA_top_0
     (
         .clk    ( clkIn     ),
-        .rst    ( rst_n     ),
+        .rst_n  ( rst_n     ),
         .hsync  ( hsync     ),
         .vsync  ( vsync     ),
         .R      ( R         ),

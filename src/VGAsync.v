@@ -29,6 +29,7 @@
 module VGAdebugScreen
 (
     input               clk,        // VGA clock 108 MHz
+    input               rst_n,
     input               en,
     output      [4:0]   regAddr,    // Used to request registers value from SchoolMIPS core
     input       [31:0]  regData,    // Register value from SchoolMIPS
@@ -58,8 +59,8 @@ module VGAdebugScreen
     VGAsync vgasync_0
     (
         .clk    ( clk           ),
+        .rst_n  ( rst_n         ),
         .en     ( en            ),
-        .rst    ( reset         ),
         .hsync  ( hsync         ),
         .vsync  ( vsync         ),
         .line   ( pixelLine     ),
@@ -156,7 +157,7 @@ endmodule
 module VGA_top
 (
     input               clk,
-    input               rst,
+    input               rst_n,
     output              hsync,
     output              vsync,
     output  [3:0]       R,
@@ -170,23 +171,16 @@ module VGA_top
 
     wire [11:0] line ;
 
-    reg clk_en ;
-
-    always @(posedge clk)
-    begin
-        if( ~rst )
-            clk_en <= 1'b0 ;
-        else
-            clk_en <= ~ clk_en ;
-    end
+    wire en;
+    sm_register en_r(clk, rst_n, ~en, en );
 
     VGAdebugScreen VGAdebugScreen_0
     (
         .clk        ( clk       ),  // VGA clock 108 MHz
-        .en         ( clk_en    ),
+        .rst_n      ( rst_n     ),
+        .en         ( en        ),
         .regAddr    ( regAddr   ),    // Used to request registers value from SchoolMIPS core
         .regData    ( regData   ),    // Register value from SchoolMIPS
-        .reset      ( ~rst      ),      // positive reset
         .bgColor    ( 12'hFF0   ),    // Background color in format: RRRRGGGGBBBB, MSB first
         .fgColor    ( 12'h00F   ),    // Foreground color in format: RRRRGGGGBBBB, MSB first
         .RGBsig     ( {R,G,B}   ),     // Output VGA video signal in format: RRRRGGGGBBBB, MSB first
@@ -194,17 +188,13 @@ module VGA_top
         .vsync      ( vsync     )       // VGA vsync
     );
 
-    initial begin
-        clk_en = 1'b0 ;
-    end
-
 endmodule
 
 module VGAsync
 (
     input               clk,        // VGA clock
+    input               rst_n,        // positive reset
     input               en,
-    input               rst,        // positive reset
     output reg          hsync,      // hsync output
     output reg          vsync,      // vsync output
     output reg  [11:0]  line,       // current line number [Y]
@@ -221,7 +211,7 @@ module VGAsync
 
     always @(posedge clk)
     begin
-        if( ~rst  )
+        if( rst_n  )
         begin
             if( en )
             begin
