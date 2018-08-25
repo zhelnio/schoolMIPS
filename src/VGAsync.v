@@ -55,6 +55,7 @@ module VGAdebugScreen
     wire    [11:0]  SymX;
 
     assign tetrad = regData >> ( 28 - ( SymX - `REG_VALUE_POS ) * 4 ) ;
+    wire visible;
 
     VGAsync vgasync_0
     (
@@ -69,7 +70,8 @@ module VGAdebugScreen
         .PixY   ( PixY          ),
         .SymY   ( SymY          ),
         .SymX   ( SymX          ),
-        .RegAddr(   regAddr     )
+        .RegAddr(   regAddr     ),
+        .visible( visible )
     );
 
     fontROM font_0
@@ -96,6 +98,8 @@ module VGAdebugScreen
 
     assign  RGBsig = ( pixelLine < 481 && pixelColumn < 641 ) ? RGB : 12'h000 ;
     assign  RGB = onoff ? fgColor : bgColor ;
+
+    //assign RGBsig = visible ? bgColor : 12'h000 ;
 
     assign symbolCode = ( SymX >= `REG_VALUE_POS && SymX < `REG_VALUE_POS + `REG_VALUE_WIDTH ) ?
                         symbolCodeFromConv :
@@ -203,7 +207,8 @@ module VGAsync
     output      [3:0]   PixY,        // Y position of pixel in the symbol
     output      [11:0]  SymY,
     output      [11:0]  SymX,
-    output      [4:0]   RegAddr
+    output      [4:0]   RegAddr,
+    output              visible 
 );
     //TODO: add width param to all regs instances
 
@@ -240,7 +245,6 @@ module VGAsync
     wire [11:0] RegAddr_nx = c_next_string ? RegAddr + 1'b1 :
                              c_image_end   ? 0              : RegAddr;
     sm_register_we r_RegAddr (clk, rst_n, en, RegAddr_nx, RegAddr );
-    
 
     always @(posedge clk)
     begin
@@ -274,8 +278,120 @@ module VGAsync
         hsync = 1'b1 ;
         vsync = 1'b1 ;
     end
+
+    // // Total redesign
+    // wire h_pixel_valid;
+    // wire h_pixel_last;
+    // wire v_pixel_valid;
+    // wire v_pixel_last;
+    
+    // wire pixel_valid = h_pixel_valid & v_pixel_valid;
+    // wire picture_end = h_pixel_last & v_pixel_last;
+
+    // wire [11:0] column_nx = h_pixel_last ? 12'b0 : column + 1;
+    // sm_register_we r_column(clk, rst_n, h_pixel_valid, column_nx, column );
+
+    // wire [11:0] line_nx = v_pixel_last ? 12'b0 : line + 1;
+    // sm_register_we r_line(clk, rst_n, v_pixel_valid, line_nx, line );
+
+    // assign PixX = column [2:0];
+    // assign PixY = line   [3:0];
+    // assign SymX = column >> 3 ;
+
+    // wire string_last = h_pixel_last & line [3:0] == 4'hF;
+
+    // wire [11:0] SymY_nx =  string_last ? SymY + 80 :
+    //                        picture_end ? 0         : SymY;
+    // sm_register r_SymY (clk, rst_n, SymY_nx, SymY );
+
+    // wire [11:0] RegAddr_nx = string_last ? RegAddr + 1'b1 :
+    //                          picture_end ? 0              : RegAddr;
+    // sm_register r_RegAddr (clk, rst_n, RegAddr_nx, RegAddr );
+
+    // sync_strobe
+    // #(
+    //     .SYNC_VA ( `HVA          ),
+    //     .SYNC_FP ( `HFP          ),
+    //     .SYNC_SP ( `HSP          ),
+    //     .SYNC_BP ( `HBP          ) 
+    // )
+    // sync_strobe_h
+    // (
+    //     .clk     ( clk           ),
+    //     .rst_n   ( rst_n         ),
+    //     .sync    ( hsync         ),
+    //     .pixel   ( h_pixel_valid ),
+    //     .last    ( h_pixel_last  ) 
+    // );
+
+    // sync_strobe
+    // #(
+    //     .SYNC_VA ( `VVA          ),
+    //     .SYNC_FP ( `VFP          ),
+    //     .SYNC_SP ( `VSP          ),
+    //     .SYNC_BP ( `VBP          ) 
+    // )
+    // sync_strobe_v
+    // (
+    //     .clk     ( clk           ),
+    //     .rst_n   ( rst_n         ),
+    //     .sync    ( vsync         ),
+    //     .pixel   ( v_pixel_valid ),
+    //     .last    ( v_pixel_last  ) 
+    // );
+
+endmodule
+
+module sync_strobe
+#(
+    parameter SYNC_VA = 640, // Visible area
+              SYNC_FP = 16,  // Front porch
+              SYNC_SP = 96,  // Sync pulse
+              SYNC_BP = 48   // Back porch
+)(
+    input   clk,
+    input   rst_n,
+    output  sync,
+    output  visible,
+    output  pixel,
+    output  last 
+);
+    localparam SYNC_DOWN    = SYNC_VA + SYNC_FP - 1;
+    localparam SYNC_UP      = SYNC_VA + SYNC_FP + SYNC_SP - 1;
+    localparam VISIBLE_UP   = SYNC_VA + SYNC_FP + SYNC_SP + SYNC_BP - 1;
+    localparam VISIBLE_DOWN = SYNC_VA - 1;
+
+    wire [11:0] cntr;
+    wire        valid    = cntr[0];
+    wire [10:0] position = cntr[11:1];
+
+    wire cntr_clr    = valid & position == VISIBLE_UP;
+    wire sync_set    = valid & position == SYNC_UP;
+    wire sync_clr    = valid & position == SYNC_DOWN;
+    wire visible_set = valid & position == VISIBLE_UP;
+    wire visible_clr = valid & position == VISIBLE_DOWN;
+
+    wire [11:0] cntr_nx  = cntr_clr ? 12'b0 : cntr + 1;
+    sm_register r_cntr(clk, rst_n, cntr_nx, cntr);
+
+    // output: sync
+    wire sync_nx = sync_set ? 1'b1 :
+                   sync_clr ? 1'b0 : sync;
+    sm_register r_sync(clk, rst_n, sync_nx, sync);
+
+    // output: visible
+    wire visible_nx = visible_set ? 1'b1 :
+                      visible_clr ? 1'b0 : visible;
+    sm_register r_visible(clk, rst_n, visible_nx, visible);
+
+    // output: pixel
+    assign pixel = valid & visible;
+
+    // output: last
+    assign last = valid & position == VISIBLE_DOWN;
     
 endmodule
+
 
 
 /*
