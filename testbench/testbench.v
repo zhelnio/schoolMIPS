@@ -4,7 +4,7 @@
 `include "sm_cpu.vh"
 
 `ifndef SIMULATION_CYCLES
-    `define SIMULATION_CYCLES 120
+    `define SIMULATION_CYCLES 1200000
 `endif
 
 module sm_testbench;
@@ -26,9 +26,9 @@ module sm_testbench;
         .rst_n     ( rst_n   ),
         .clkDevide ( 4'b0    ),
         .clkEnable ( 1'b1    ),
-        .clk       ( cpuClk  ),
-        .regAddr   ( regAddr ),
-        .regData   ( regData )
+        .clk       ( cpuClk  )//,
+        // .regAddr   ( regAddr ),
+        // .regData   ( regData )
     );
 
     defparam sm_top.sm_clk_divider.bypass = 1;
