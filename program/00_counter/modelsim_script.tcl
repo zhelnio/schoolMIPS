@@ -19,7 +19,7 @@ vsim work.sm_testbench
 # add wave -radix hex sim:/sm_testbench/sm_top/sm_cpu/*
 # add wave -radix hex sim:/sm_testbench/sm_top/sm_cpu/rf/*
 # add wave -radix hex sim:/sm_testbench/sm_top/sm_cpu/rf/rf
-add wave -position end sim:/sm_testbench/sm_top/VGA_top_0/VGAdebugScreen_0/vgasync_0/sync_strobe_h/*
+add wave -position end sim:/sm_testbench/sm_top/VGA_top_0/VGAdebugScreen_0/*
 
 run -all
 
