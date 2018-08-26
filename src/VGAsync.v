@@ -42,6 +42,7 @@ module VGAdebugScreen
 );
 
     localparam GPOS_WIDTH = 12;
+    localparam TPOS_WIDTH = 12;
 
     wire                  pixel_h_last;
     wire                  pixel_v_last;
@@ -49,6 +50,12 @@ module VGAdebugScreen
     wire                  pixel_visible;
     wire [GPOS_WIDTH-1:0] pixel_pos_h;
     wire [GPOS_WIDTH-1:0] pixel_pos_v;
+
+    wire [           2:0] char_img_x;
+    wire [           3:0] char_img_y;
+    wire [TPOS_WIDTH-1:0] char_pos_x;
+    wire [TPOS_WIDTH-1:0] char_pos_y;
+    wire [TPOS_WIDTH-1:0] char_pos_abs;
 
     vga_sync
     #(
@@ -68,7 +75,47 @@ module VGAdebugScreen
         .pixel_pos_v   ( pixel_pos_v   ) 
     );
 
-    assign RGBsig = pixel_visible ? bgColor : 12'h000 ;
+    //assign RGBsig = pixel_visible ? bgColor : 12'h000 ;
+
+    vga_text
+    #(
+        .GPOS_WIDTH   ( GPOS_WIDTH   ),
+        .TPOS_WIDTH   ( TPOS_WIDTH   )
+    )
+    vga_text
+    (
+        .clk          ( clk          ),
+        .rst_n        ( rst_n        ),
+        .pixel_pos_h  ( pixel_pos_h  ),
+        .pixel_pos_v  ( pixel_pos_v  ),
+        .char_img_x   ( char_img_x   ),
+        .char_img_y   ( char_img_y   ),
+        .char_pos_x   ( char_pos_x   ),
+        .char_pos_y   ( char_pos_y   ),
+        .char_pos_abs ( char_pos_abs ) 
+    );
+
+    wire    [7:0]   symbolCode;
+    wire            onoff;
+
+    fontROM font_0
+    (
+        .clk        ( clk           ),
+        .x          ( char_img_x    ),
+        .y          ( char_img_y    ),
+        .symbolCode ( symbolCode    ),
+        .onoff      ( onoff         )
+    );
+
+    displayROM dispROM_0
+    (
+        .symbolLine     ( char_pos_abs ),
+        .symbolColumn   ( 0            ),
+        .symbolCode     ( symbolCode   )
+    );
+
+    assign RGB = onoff ? fgColor : bgColor ;
+    assign RGBsig = pixel_visible ? RGB : 12'h000 ;
 
     // wire    [11:0]  pixelLine;          // pixel Y coordinate
     // wire    [11:0]  pixelColumn;        // pixel X coordinate
@@ -298,6 +345,31 @@ module VGAsync
 
 endmodule
 
+module vga_text
+#(
+    parameter GPOS_WIDTH = 12,
+              TPOS_WIDTH = 12
+)(
+    input                   clk,
+    input                   rst_n,
+    input  [GPOS_WIDTH-1:0] pixel_pos_h,
+    input  [GPOS_WIDTH-1:0] pixel_pos_v,
+
+    output [           2:0] char_img_x,
+    output [           3:0] char_img_y,
+    output [TPOS_WIDTH-1:0] char_pos_x,
+    output [TPOS_WIDTH-1:0] char_pos_y,
+    output [TPOS_WIDTH-1:0] char_pos_abs
+);
+    assign char_img_x = pixel_pos_h [2:0];
+    assign char_img_y = pixel_pos_v [3:0];
+    assign char_pos_x = pixel_pos_h >> 3;
+    assign char_pos_y = pixel_pos_v >> 4;
+
+    //TODO: replace multiply with a simple sequential logic
+    assign char_pos_abs = char_pos_y * 80 + char_pos_x;
+
+endmodule
 
 module vga_sync
 #(
