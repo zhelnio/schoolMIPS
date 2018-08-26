@@ -53,6 +53,7 @@ module VGAdebugScreen
     wire    [3:0]   PixY;
     wire    [11:0]  SymY;
     wire    [11:0]  SymX;
+    wire    [11:0]  SymPos;
 
     assign tetrad = regData >> ( 28 - ( SymX - `REG_VALUE_POS ) * 4 ) ;
     wire visible;
@@ -70,37 +71,10 @@ module VGAdebugScreen
         .PixY   ( PixY          ),
         .SymY   ( SymY          ),
         .SymX   ( SymX          ),
+        .SymPos ( SymPos        ),
         .RegAddr(   regAddr     ),
         .visible( visible )
     );
-
-    // wire          hsync_dbg;
-    // wire          vsync_dbg;
-    // wire  [11:0]  line_dbg;
-    // wire  [11:0]  column_dbg;
-    // wire  [2:0]   PixX_dbg;
-    // wire  [3:0]   PixY_dbg;
-    // wire  [11:0]  SymY_dbg;
-    // wire  [11:0]  SymX_dbg;
-    // wire  [4:0]   RegAddr_dbg;
-    // wire          visible_dbg;
-
-    // VGAsync vgasync_1
-    // (
-    //     .clk    ( clk           ),
-    //     .rst_n  ( rst_n         ),
-    //     .en     ( 1'b0            ),
-    //     .hsync  ( hsync_dbg         ),
-    //     .vsync  ( vsync_dbg         ),
-    //     .line   ( pixelLine_dbg     ),
-    //     .column ( pixelColumn_dbg   ),
-    //     .PixX   ( PixX_dbg          ),
-    //     .PixY   ( PixY_dbg          ),
-    //     .SymY   ( SymY_dbg          ),
-    //     .SymX   ( SymX_dbg          ),
-    //     .RegAddr( regAddr_dbg       ),
-    //     .visible( visible_dbg       )
-    // );
 
     fontROM font_0
     (
@@ -113,8 +87,8 @@ module VGAdebugScreen
 
     displayROM dispROM_0
     (
-        .symbolLine     ( SymY              ),
-        .symbolColumn   ( SymX              ),
+        .symbolLine     ( SymPos              ),
+        .symbolColumn   ( 0              ),
         .symbolCode     ( symbolCodeFromROM )
     );
 
@@ -127,13 +101,13 @@ module VGAdebugScreen
     //assign  RGBsig = ( pixelLine < 481 && pixelColumn < 641 ) ? RGB : 12'h000 ;
     assign  RGB = onoff ? fgColor : bgColor ;
 
-    assign RGBsig = visible ? bgColor : 12'h000 ;
-    //assign RGBsig = bgColor;
-    //assign  RGBsig = ( pixelLine < 481 && pixelColumn < 641 ) ? bgColor : 12'h000 ;
+    assign RGBsig = visible ? RGB : 12'h000 ;
 
-    assign symbolCode = ( SymX >= `REG_VALUE_POS && SymX < `REG_VALUE_POS + `REG_VALUE_WIDTH ) ?
-                        symbolCodeFromConv :
-                        symbolCodeFromROM ;
+
+    // assign symbolCode = ( SymX >= `REG_VALUE_POS && SymX < `REG_VALUE_POS + `REG_VALUE_WIDTH ) ?
+    //                     symbolCodeFromConv :
+    //                     symbolCodeFromROM ;
+    assign symbolCode = symbolCodeFromROM;
     
 endmodule
 
@@ -224,93 +198,7 @@ module VGA_top
 
 endmodule
 
-module VGAsync_old
-(
-    input               clk,        // VGA clock
-    input               rst_n,        // positive reset
-    input               en,
-    output      reg     hsync,      // hsync output
-    output      reg     vsync,      // vsync output
-    output      [11:0]  line,       // current line number [Y]
-    output      [11:0]  column,     // current column number [X]
-    output      [2:0]   PixX,
-    output      [3:0]   PixY,        // Y position of pixel in the symbol
-    output      [11:0]  SymY,
-    output      [11:0]  SymX,
-    output      [4:0]   RegAddr,
-    output              visible 
-);
 
-    //TODO: add width param to all regs instances
-
-    wire c_last_column = (column == `HWL);
-    wire c_last_line   = (line   == `VWF);
-    wire c_image_end   = c_last_column & c_last_line;
-
-    wire [11:0] column_nx = c_last_column ? 12'b0 : column + 1;
-    sm_register_we r_column(clk, rst_n, en, column_nx, column ); 
-
-    wire [ 2:0] PixX_nx = c_last_column ?  3'b0 : PixX + 1;
-    sm_register_we r_PixX (clk, rst_n, en, PixX_nx,   PixX   );
-
-    wire [11:0] line_nx = ~c_last_column ? line  :
-                           c_last_line   ? 12'b0 : line + 1;
-    sm_register_we r_line (clk, rst_n, en, line_nx,   line   );
-
-    wire [ 3:0] PixY_nx = PixY == 15     ? 4'b0 : // TODO: what is 15?
-                          ~c_last_column ? PixY :
-                           c_last_line   ? 4'b0 : PixY + 1;
-    sm_register_we r_PixY (clk, rst_n, en, PixY_nx,   PixY   );
-
-    wire [31:0] cntr;
-    wire        c_next_string = cntr == `HWL * 15  + 1 * 32; // TODO: cntr refactoring
-    wire [31:0] cntr_nx = c_next_string | c_image_end ? 0 : cntr + 1;
-    sm_register_we r_cntr (clk, rst_n, en, cntr_nx, cntr );
-
-    assign SymX = column >> 3 ;
-
-    wire [11:0] SymY_nx =  c_next_string ? SymY + 80 :
-                           c_image_end   ? 0         : SymY;
-    sm_register_we r_SymY (clk, rst_n, en, SymY_nx, SymY );
-
-    wire [11:0] RegAddr_nx = c_next_string ? RegAddr + 1'b1 :
-                             c_image_end   ? 0              : RegAddr;
-    sm_register_we r_RegAddr (clk, rst_n, en, RegAddr_nx, RegAddr );
-
-    always @(posedge clk)
-    begin
-        if( rst_n  )
-        begin
-            if( en )
-            begin
-                if( c_last_column )
-                begin
-                    
-                    if( ( line >= ( `VVA + `VFP ) ) && ( line < ( `VVA + `VFP + `VSP ) ) )
-                        vsync <= 1'b0 ;
-                    else
-                        vsync <= 1'b1 ;                
-                end
-                
-                if( ( column >= ( `HVA + `HFP ) ) && ( column < ( `HVA + `HFP + `HSP ) ) )
-                    hsync <= 1'b0 ;
-                else
-                    hsync <= 1'b1 ; 
-            end               
-        end
-        else 
-        begin
-            hsync <= 1'b1 ;
-            vsync <= 1'b1 ;
-        end
-    end
-
-    initial begin
-        hsync = 1'b1 ;
-        vsync = 1'b1 ;
-    end
-
-endmodule
 
 module VGAsync
 (
@@ -325,6 +213,7 @@ module VGAsync
     output      [3:0]   PixY,        // Y position of pixel in the symbol
     output      [11:0]  SymY,
     output      [11:0]  SymX,
+    output      [11:0]  SymPos,
     output      [4:0]   RegAddr,
     output              visible 
 );
@@ -347,11 +236,30 @@ module VGAsync
     assign PixY = line   [3:0];
     assign SymX = column >> 3 ;
 
-    wire string_last = h_pixel_last & line [3:0] == 4'hF;
+    wire string_last_line =  line [3:0] == 4'hF;
+    wire string_last       = h_pixel_last & string_last_line;
 
-    wire [11:0] SymY_nx =  string_last ? SymY + 80 :
-                           picture_end ? 0         : SymY;
-    sm_register r_SymY (clk, rst_n, SymY_nx, SymY );
+
+    // wire [11:0] SymY_nx =  string_last ? SymY + 80 :
+    //                        picture_end ? 0         : SymY;
+    // sm_register_we r_SymY (clk, rst_n, string_last, SymY_nx, SymY );
+
+    //assign SymY = line >> 4 ;
+    //assign SymY = (line >> 4) * 80;
+
+    wire symbol_last = pixel_valid && column [2:0] == 3'b111;
+
+    assign SymPos = (line >> 4) * 80 + SymX;
+
+    // wire [11:0] StrStart;
+    // wire [11:0] StrStart_nx = picture_end      ? 0            :
+    //                           string_last_line ? StrStart + 1 : StrStart;
+    // sm_register r_StrStart (clk, rst_n, StrStart_nx, StrStart );
+
+    // wire [11:0] SymPos_nx = symbol_last  ? SymPos + 1 :
+    //                         h_pixel_last ? StrStart   : SymPos;
+    // sm_register r_SymPos (clk, rst_n, SymPos_nx, SymPos );
+
 
     wire [11:0] RegAddr_nx = string_last ? RegAddr + 1'b1 :
                              picture_end ? 0              : RegAddr;
@@ -457,6 +365,8 @@ endmodule
 
 
 /*
+    // OLD CODE
+
     assign SymX = column >> 3 ;
 
     always @(posedge clk)
@@ -526,5 +436,95 @@ endmodule
         hsync = 1'b1 ;
         vsync = 1'b1 ;
     end
+
+    // ***********************************************************************************************************
+
+    module VGAsync_old
+    (
+        input               clk,        // VGA clock
+        input               rst_n,        // positive reset
+        input               en,
+        output      reg     hsync,      // hsync output
+        output      reg     vsync,      // vsync output
+        output      [11:0]  line,       // current line number [Y]
+        output      [11:0]  column,     // current column number [X]
+        output      [2:0]   PixX,
+        output      [3:0]   PixY,        // Y position of pixel in the symbol
+        output      [11:0]  SymY,
+        output      [11:0]  SymX,
+        output      [4:0]   RegAddr,
+        output              visible 
+    );
+
+        //TODO: add width param to all regs instances
+
+        wire c_last_column = (column == `HWL);
+        wire c_last_line   = (line   == `VWF);
+        wire c_image_end   = c_last_column & c_last_line;
+
+        wire [11:0] column_nx = c_last_column ? 12'b0 : column + 1;
+        sm_register_we r_column(clk, rst_n, en, column_nx, column ); 
+
+        wire [ 2:0] PixX_nx = c_last_column ?  3'b0 : PixX + 1;
+        sm_register_we r_PixX (clk, rst_n, en, PixX_nx,   PixX   );
+
+        wire [11:0] line_nx = ~c_last_column ? line  :
+                            c_last_line   ? 12'b0 : line + 1;
+        sm_register_we r_line (clk, rst_n, en, line_nx,   line   );
+
+        wire [ 3:0] PixY_nx = PixY == 15     ? 4'b0 : // TODO: what is 15?
+                            ~c_last_column ? PixY :
+                            c_last_line   ? 4'b0 : PixY + 1;
+        sm_register_we r_PixY (clk, rst_n, en, PixY_nx,   PixY   );
+
+        wire [31:0] cntr;
+        wire        c_next_string = cntr == `HWL * 15  + 1 * 32; // TODO: cntr refactoring
+        wire [31:0] cntr_nx = c_next_string | c_image_end ? 0 : cntr + 1;
+        sm_register_we r_cntr (clk, rst_n, en, cntr_nx, cntr );
+
+        assign SymX = column >> 3 ;
+
+        wire [11:0] SymY_nx =  c_next_string ? SymY + 80 :
+                            c_image_end   ? 0         : SymY;
+        sm_register_we r_SymY (clk, rst_n, en, SymY_nx, SymY );
+
+        wire [11:0] RegAddr_nx = c_next_string ? RegAddr + 1'b1 :
+                                c_image_end   ? 0              : RegAddr;
+        sm_register_we r_RegAddr (clk, rst_n, en, RegAddr_nx, RegAddr );
+
+        always @(posedge clk)
+        begin
+            if( rst_n  )
+            begin
+                if( en )
+                begin
+                    if( c_last_column )
+                    begin
+                        
+                        if( ( line >= ( `VVA + `VFP ) ) && ( line < ( `VVA + `VFP + `VSP ) ) )
+                            vsync <= 1'b0 ;
+                        else
+                            vsync <= 1'b1 ;                
+                    end
+                    
+                    if( ( column >= ( `HVA + `HFP ) ) && ( column < ( `HVA + `HFP + `HSP ) ) )
+                        hsync <= 1'b0 ;
+                    else
+                        hsync <= 1'b1 ; 
+                end               
+            end
+            else 
+            begin
+                hsync <= 1'b1 ;
+                vsync <= 1'b1 ;
+            end
+        end
+
+        initial begin
+            hsync = 1'b1 ;
+            vsync = 1'b1 ;
+        end
+
+    endmodule
 
 */
